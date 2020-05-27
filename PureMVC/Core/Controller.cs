@@ -7,6 +7,7 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using PureMVC.Interfaces;
 using PureMVC.Patterns.Observer;
 
@@ -60,7 +61,7 @@ namespace PureMVC.Core
         {
             if (instance != null) throw new Exception(SingletonMsg);
             instance = this;
-            commandMap = new ConcurrentDictionary<string, Func<ICommand>>();
+            commandMap = new Dictionary<string, Func<ICommand>>();
             InitializeController();
         }
 
@@ -110,7 +111,8 @@ namespace PureMVC.Core
         /// <param name="notification">note an <c>INotification</c></param>
         public virtual void ExecuteCommand(INotification notification)
         {
-            if (commandMap.TryGetValue(notification.Name, out var factory))
+            Func<ICommand> factory;
+            if (commandMap.TryGetValue(notification.Name, out factory))
             {
                 var commandInstance = factory();
                 commandInstance.Execute(notification);
@@ -136,6 +138,7 @@ namespace PureMVC.Core
         /// <param name="factory">the <c>Func Delegate</c> of the <c>ICommand</c></param>
         public virtual void RegisterCommand(string notificationName, Func<ICommand> factory)
         {
+            Func<ICommand> _;
             if (commandMap.TryGetValue(notificationName, out _) == false)
             {
                 view.RegisterObserver(notificationName, new Observer(ExecuteCommand, this));
@@ -149,7 +152,7 @@ namespace PureMVC.Core
         /// <param name="notificationName">the name of the <c>INotification</c> to remove the <c>ICommand</c> mapping for</param>
         public virtual void RemoveCommand(string notificationName)
         {
-            if (commandMap.TryRemove(notificationName, out _))
+            if (commandMap.Remove(notificationName))
             {
                 view.RemoveObserver(notificationName, this);
             }
@@ -169,7 +172,7 @@ namespace PureMVC.Core
         protected IView view;
 
         /// <summary>Mapping of Notification names to Command Class references</summary>
-        protected readonly ConcurrentDictionary<string, Func<ICommand>> commandMap;
+        protected readonly Dictionary<string, Func<ICommand>> commandMap;
 
         /// <summary>Singleton instance</summary>
         protected static IController instance;

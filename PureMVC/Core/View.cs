@@ -48,8 +48,8 @@ namespace PureMVC.Core
         {
             if (instance != null) throw new Exception(SingletonMsg);
             instance = this;
-            mediatorMap = new ConcurrentDictionary<string, IMediator>();
-            observerMap = new ConcurrentDictionary<string, IList<IObserver>>();
+            mediatorMap = new Dictionary<string, IMediator>();
+            observerMap = new Dictionary<string, IList<IObserver>>();
             InitializeView();
         }
 
@@ -90,13 +90,17 @@ namespace PureMVC.Core
         /// <param name="observer">the <c>IObserver</c> to register</param>
         public virtual void RegisterObserver(string notificationName, IObserver observer)
         {
-            if (observerMap.TryGetValue(notificationName, out var observers))
+            IList<IObserver> observers;
+            if (observerMap.TryGetValue(notificationName, out observers))
             {
                 observers.Add(observer);
             }
             else
             {
-                observerMap.TryAdd(notificationName, new List<IObserver> { observer });
+                if(observerMap.ContainsKey(notificationName) == false)
+                {
+                    observerMap.Add(notificationName, new List<IObserver> { observer });
+                }
             }
         }
 
@@ -113,8 +117,9 @@ namespace PureMVC.Core
         /// <param name="notification"></param>
         public virtual void NotifyObservers(INotification notification)
         {
+            IList<IObserver> observersRef;
             // Get a reference to the observers list for this notification name
-            if (observerMap.TryGetValue(notification.Name, out var observersRef))
+            if (observerMap.TryGetValue(notification.Name, out observersRef))
             {
                 // Copy observers from reference array to working array, 
                 // since the reference array may change during the notification loop
@@ -135,8 +140,9 @@ namespace PureMVC.Core
         /// <param name="notifyContext">remove the observer with this object as its notifyContext</param>
         public virtual void RemoveObserver(string notificationName, object notifyContext)
         {
+            IList<IObserver> observers;
             // the observer list for the notification under inspection
-            if (observerMap.TryGetValue(notificationName, out var observers))
+            if (observerMap.TryGetValue(notificationName, out observers))
             {
                 // find the observer for the notifyContext
                 for (var i = 0; i < observers.Count; i++)
@@ -153,7 +159,7 @@ namespace PureMVC.Core
                 // Also, when a Notification's Observer list length falls to
                 // zero, delete the notification key from the observer map
                 if (observers.Count == 0)
-                    observerMap.TryRemove(notificationName, out _);
+                    observerMap.Remove(notificationName);
             }
         }
 
@@ -179,8 +185,9 @@ namespace PureMVC.Core
         {
             // do not allow re-registration (you must to removeMediator fist)
             // Register the Mediator for retrieval by name
-            if(mediatorMap.TryAdd(mediator.MediatorName, mediator))
+            if(mediatorMap.ContainsKey(mediator.MediatorName) == false)
             {
+                mediatorMap.Add(mediator.MediatorName, mediator);
                 // Get Notification interests, if any.
                 var interests = mediator.ListNotificationInterests();
 
@@ -208,7 +215,8 @@ namespace PureMVC.Core
         /// <returns>the <c>IMediator</c> instance previously registered with the given <c>mediatorName</c>.</returns>
         public virtual IMediator RetrieveMediator(string mediatorName)
         {
-            return mediatorMap.TryGetValue(mediatorName, out var mediator) ? mediator : null;
+            IMediator mediator;
+            return mediatorMap.TryGetValue(mediatorName, out mediator) ? mediator : null;
         }
 
         /// <summary>
@@ -218,9 +226,11 @@ namespace PureMVC.Core
         /// <returns>the <c>IMediator</c> that was removed from the <c>View</c></returns>
         public virtual IMediator RemoveMediator(string mediatorName)
         {
+            IMediator mediator;
             // Retrieve the named mediator
-            if (mediatorMap.TryRemove(mediatorName, out var mediator))
+            if (mediatorMap.TryGetValue(mediatorName, out mediator))
             {
+                mediatorMap.Remove(mediatorName);
                 // for every notification this mediator is interested in...
                 var interests = mediator.ListNotificationInterests();
                 foreach (var interest in interests)
@@ -247,10 +257,10 @@ namespace PureMVC.Core
         }
 
         /// <summary>Mapping of Mediator names to Mediator instances</summary>
-        protected readonly ConcurrentDictionary<string, IMediator> mediatorMap;
+        protected readonly Dictionary<string, IMediator> mediatorMap;
 
         /// <summary>Mapping of Notification names to Observer lists</summary>
-        protected readonly ConcurrentDictionary<string, IList<IObserver>> observerMap;
+        protected readonly Dictionary<string, IList<IObserver>> observerMap;
 
         /// <summary>Singleton instance</summary>
         protected static IView instance;

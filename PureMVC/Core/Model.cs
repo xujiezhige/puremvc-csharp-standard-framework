@@ -7,6 +7,7 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using PureMVC.Interfaces;
 
 namespace PureMVC.Core
@@ -48,7 +49,7 @@ namespace PureMVC.Core
         {
             if (instance != null) throw new Exception(SingletonMsg);
             instance = this;
-            proxyMap = new ConcurrentDictionary<string, IProxy>();
+            proxyMap = new Dictionary<string, IProxy>();
             InitializeModel();
         }
 
@@ -98,7 +99,8 @@ namespace PureMVC.Core
         /// <returns>the <c>IProxy</c> instance previously registered with the given <c>proxyName</c>.</returns>
         public virtual IProxy RetrieveProxy(string proxyName)
         {
-            return proxyMap.TryGetValue(proxyName, out var proxy) ? proxy : null;
+            IProxy proxy;
+            return proxyMap.TryGetValue(proxyName, out proxy) ? proxy : null;
         }
 
         /// <summary>
@@ -108,10 +110,13 @@ namespace PureMVC.Core
         /// <returns>the <c>IProxy</c> that was removed from the <c>Model</c></returns>
         public virtual IProxy RemoveProxy(string proxyName)
         {
-            if (proxyMap.TryRemove(proxyName, out var proxy))
+            IProxy proxy;
+            if (proxyMap.TryGetValue(proxyName, out proxy))
             {
+                proxyMap.Remove(proxyName);
                 proxy.OnRemove();
             }
+
             return proxy;
         }
 
@@ -126,7 +131,7 @@ namespace PureMVC.Core
         }
 
         /// <summary>Mapping of proxyNames to IProxy instances</summary>
-        protected readonly ConcurrentDictionary<string, IProxy> proxyMap;
+        protected readonly Dictionary<string, IProxy> proxyMap;
 
         /// <summary>Singleton instance</summary>
         protected static IModel instance;
